@@ -125,7 +125,8 @@ absl::StatusOr<HloInstruction*> ChooseIdentityValue(HloInstruction* inst,
     }
 
     case HloOpcode::kConvolution:
-    case HloOpcode::kDot: {
+    case HloOpcode::kDot:
+    case HloOpcode::kRaggedDot: {
       // Use 0 as padding value for convolution and dot.
       //
       // Note that the output type (inst->shape().element_type()) isn't
@@ -283,6 +284,19 @@ bool ShouldSkipPadOnOperand(
       return !absl::c_linear_search(
           inst->dot_dimension_numbers().rhs_contracting_dimensions(),
           dimension);
+    }
+    case HloOpcode::kRaggedDot: {
+      const DotDimensionNumbers& dnums =
+          inst->ragged_dot_dimension_numbers().dot_dimension_numbers();
+      if (operand_num == 0) {
+        return !absl::c_linear_search(dnums.lhs_contracting_dimensions(),
+                                      dimension);
+      }
+      if (operand_num == 1) {
+        return !absl::c_linear_search(dnums.rhs_contracting_dimensions(),
+                                      dimension);
+      }
+      return false;
     }
     case HloOpcode::kReduce:
       return !absl::c_linear_search(inst->dimensions(), dimension);
