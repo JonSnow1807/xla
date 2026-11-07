@@ -1558,5 +1558,72 @@ ENTRY e {
   EXPECT_THAT(defused_ftup->operands(),
               ::testing::ElementsAre(defused_fadd, p1, p2));
 }
+
+TEST_F(HloInstructionTest, FuseInstructionReplacesAllDuplicateOperands) {
+  constexpr absl::string_view kHlo = R"hlo(
+HloModule m
+
+fused_comp {
+  fp0 = f32[8] parameter(0)
+  fp1 = f32[8] parameter(1)
+  fp2 = f32[8] parameter(2)
+  sum01 = f32[8] add(fp0, fp1)
+  ROOT out = f32[8] multiply(sum01, fp2)
+}
+
+ENTRY e {
+  z = f32[8] parameter(0)
+  y = f32[8] parameter(1)
+  x = f32[8] negate(z)
+  ROOT fus = f32[8] fusion(x, y, x), kind=kLoop, calls=fused_comp
+}
+)hlo";
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<HloModule> module,
+                       ParseAndReturnVerifiedModule(kHlo));
+  HloComputation* entry = module->entry_computation();
+  HloInstruction* z = entry->parameter_instruction(0);
+  HloInstruction* y = entry->parameter_instruction(1);
+  HloInstruction* x = FindInstruction(module.get(), "x");
+  auto* fus = Cast<HloFusionInstruction>(entry->root_instruction());
+
+  fus->FuseInstruction(x);
+  ASSERT_OK(entry->RemoveInstruction(x));
+
+  EXPECT_THAT(fus->operands(), ::testing::ElementsAre(y, z));
+  EXPECT_EQ(y->UserId(fus), 0);
+  EXPECT_EQ(z->UserId(fus), 0);
+}
+
+TEST_F(HloInstructionTest,
+       FuseInstructionIntoMultiOutputReplacesAllDuplicateOperands) {
+  constexpr absl::string_view kHlo = R"hlo(
+HloModule m
+
+fused_comp {
+  fp0 = f32[8] parameter(0)
+  fp1 = f32[8] parameter(1)
+  ROOT out = f32[8] add(fp0, fp1)
+}
+
+ENTRY e {
+  z = f32[8] parameter(0)
+  x = f32[8] negate(z)
+  fus = f32[8] fusion(x, x), kind=kLoop, calls=fused_comp
+  ROOT res = f32[8] multiply(fus, x)
+}
+)hlo";
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<HloModule> module,
+                       ParseAndReturnVerifiedModule(kHlo));
+  HloComputation* entry = module->entry_computation();
+  HloInstruction* z = entry->parameter_instruction(0);
+  HloInstruction* x = FindInstruction(module.get(), "x");
+  auto* fus = Cast<HloFusionInstruction>(FindInstruction(module.get(), "fus"));
+
+  fus->FuseInstructionIntoMultiOutput(x);
+  ASSERT_OK(entry->RemoveInstruction(x));
+
+  EXPECT_THAT(fus->operands(), ::testing::ElementsAre(z));
+  EXPECT_EQ(z->UserId(fus), 0);
+}
 }  // namespace
 }  // namespace xla
