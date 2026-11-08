@@ -1589,11 +1589,71 @@ func.func @get_dynamic_dim_size_sub_byte_width(%arg0: tensor<512xi4>) -> i32 {
 // CHECK-LABEL: @get_dynamic_dim_size_sub_byte_width
 // CHECK: llvm.mlir.constant(260 : i64) : i64
 
-// // -----
+// -----
 
 func.func @get_dynamic_dim_size_unaligned(%arg0: tensor<7xf16>) -> i32 {
-// expected-error @+1 {{'xla.get_dynamic_dim_size' op dynamic size offset is not 4-byte aligned}}
   %0 = xla.get_dynamic_dim_size %arg0 1 : tensor<7xf16>
   func.return %0 : i32
 }
+// CHECK-LABEL: @get_dynamic_dim_size_unaligned
+// CHECK: llvm.mlir.constant(18 : i64) : i64
+// CHECK: llvm.load %{{.*}} <alignment = 1> : !llvm.ptr -> i32
+
+// -----
+
+func.func @get_dynamic_dim_size_unaligned_odd(%arg0: tensor<3xi8>) -> i32 {
+  %0 = xla.get_dynamic_dim_size %arg0 0 : tensor<3xi8>
+  func.return %0 : i32
+}
+// CHECK-LABEL: @get_dynamic_dim_size_unaligned_odd
+// CHECK: llvm.mlir.constant(3 : i64) : i64
+// CHECK: llvm.load %{{.*}} <alignment = 1> : !llvm.ptr -> i32
+
+// -----
+
+func.func @set_dynamic_dim_size(%arg0: tensor<512xf32>, %size: i32) -> tensor<512xf32> {
+  %0 = xla.set_dynamic_dim_size %size into %arg0[1] : tensor<512xf32>
+  func.return %0 : tensor<512xf32>
+}
+// CHECK-LABEL: @set_dynamic_dim_size
+// CHECK: llvm.mlir.constant(2052 : i64) : i64
+// CHECK: llvm.store %{{.*}}, %{{.*}} <alignment = 4> : i32, !llvm.ptr
+
+// -----
+
+func.func @set_dynamic_dim_size_unaligned_sub_byte(%arg0: tensor<5xi4>, %size: i32) -> tensor<5xi4> {
+  %0 = xla.set_dynamic_dim_size %size into %arg0[0] : tensor<5xi4>
+  func.return %0 : tensor<5xi4>
+}
+// CHECK-LABEL: @set_dynamic_dim_size_unaligned_sub_byte
+// CHECK: llvm.mlir.constant(3 : i64) : i64
+// CHECK: llvm.store %{{.*}}, %{{.*}} <alignment = 1> : i32, !llvm.ptr
+
+// -----
+
+func.func @set_dynamic_dim_size_before_sub_byte_insert(
+    %arg0: tensor<5xi4>, %size: i32, %val: i4, %idx: index, %cond0: i1,
+    %cond1: i1) -> tensor<5xi4> {
+  %with_dim = scf.if %cond0 -> (tensor<5xi4>) {
+    %updated = xla.set_dynamic_dim_size %size into %arg0[0] : tensor<5xi4>
+    scf.yield %updated : tensor<5xi4>
+  } else {
+    scf.yield %arg0 : tensor<5xi4>
+  }
+  %res = scf.if %cond1 -> (tensor<5xi4>) {
+    %ins = tensor.insert %val into %with_dim[%idx] : tensor<5xi4>
+    scf.yield %ins : tensor<5xi4>
+  } else {
+    scf.yield %with_dim : tensor<5xi4>
+  }
+  func.return %res : tensor<5xi4>
+}
+// CHECK-LABEL: @set_dynamic_dim_size_before_sub_byte_insert
+// CHECK: scf.if %{{.*}} {
+// CHECK:   llvm.store %{{.*}}, %{{.*}} <alignment = 1> : i32, !llvm.ptr
+// CHECK-NEXT: }
+// CHECK-NEXT: scf.if %{{.*}} {
+// CHECK-GPU: llvm.cmpxchg
+// CHECK-CPU: llvm.store
+// CHECK: return
 

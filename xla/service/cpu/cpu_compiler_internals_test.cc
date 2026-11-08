@@ -152,27 +152,9 @@ std::optional<int64_t> GetMetadataInt(llvm::Metadata* absl_nullable value) {
   return c->getSExtValue();
 }
 
-std::optional<std::string> GetMetadataString(
-    llvm::Metadata* absl_nullable value) {
-  if (value == nullptr) {
-    return std::nullopt;
-  }
-  auto* md_string = llvm::dyn_cast<llvm::MDString>(value);
-  if (md_string == nullptr) {
-    return std::nullopt;
-  }
-  return md_string->getString().str();
-}
-
 std::optional<int64_t> GetXlaDylibIndex(const llvm::Module& llvm_module) {
   llvm::Metadata* md = llvm_module.getModuleFlag("xla_dylib_index");
   return GetMetadataInt(md);
-}
-
-std::optional<std::string> GetXlaBackendExtraOptions(
-    const llvm::Module& llvm_module) {
-  llvm::Metadata* md = llvm_module.getModuleFlag("xla_backend_extra_options");
-  return GetMetadataString(md);
 }
 
 static constexpr absl::string_view kAddExponentialOfScatterHlo = R"(

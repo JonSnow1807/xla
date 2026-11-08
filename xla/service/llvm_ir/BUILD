@@ -48,33 +48,12 @@ filegroup(
 )
 
 cc_library(
-    name = "alias_analysis",
-    srcs = ["alias_analysis.cc"],
-    hdrs = ["alias_analysis.h"],
-    deps = [
-        ":ir_array",
-        ":llvm_type_conversion_util",
-        "//xla:shape_util",
-        "//xla:types",
-        "//xla/hlo/ir:hlo",
-        "//xla/service:buffer_assignment",
-        "//xla/service:hlo_value",
-        "//xla/service:logical_buffer",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/strings",
-        "@llvm-project//llvm:Core",
-    ],
-)
-
-cc_library(
     name = "llvm_util",
     srcs = ["llvm_util.cc"],
     hdrs = ["llvm_util.h"],
     local_defines = if_cuda_is_configured(["GOOGLE_CUDA=1"]),
     deps = [
         ":llvm_type_conversion_util",
-        "//xla:literal",
         "//xla:shape_util",
         "//xla:util",
         "//xla:xla_data_proto_cc",
@@ -82,7 +61,6 @@ cc_library(
         "//xla/service:dump",
         "//xla/service:hlo_module_config",
         "//xla/service/cpu:cpu_options",
-        "//xla/tsl/platform:byte_order",
         "//xla/tsl/platform:logging",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/log",
@@ -96,7 +74,6 @@ cc_library(
         "@llvm-project//llvm:Core",
         "@llvm-project//llvm:Support",
         "@llvm-project//llvm:TargetParser",
-        "@llvm-project//llvm:TransformUtils",
         "@llvm-project//mlir:IR",
         "@tsl//tsl/profiler/lib:scoped_annotation",
     ],
@@ -198,60 +175,6 @@ cc_library(
 )
 
 cc_library(
-    name = "loop_emitter",
-    srcs = ["loop_emitter.cc"],
-    hdrs = ["loop_emitter.h"],
-    deps = [
-        ":ir_array",
-        ":llvm_loop",
-        "//xla:shape_util",
-        "//xla/tsl/platform:errors",
-        "//xla/tsl/platform:logging",
-        "//xla/tsl/platform:statusor",
-        "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:status_macros",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings:str_format",
-        "@com_google_absl//absl/strings:string_view",
-        "@com_google_absl//absl/types:span",
-        "@llvm-project//llvm:Core",
-    ],
-)
-
-cc_library(
-    name = "dynamic_update_slice_util",
-    srcs = ["dynamic_update_slice_util.cc"],
-    hdrs = ["dynamic_update_slice_util.h"],
-    deps = [
-        "//xla:shape_util",
-        "//xla/hlo/ir:hlo",
-        "//xla/service:buffer_assignment",
-        "//xla/service/cpu:backend_config_proto_cc",
-        "@com_google_absl//absl/log:check",
-    ],
-)
-
-cc_library(
-    name = "tuple_ops",
-    srcs = ["tuple_ops.cc"],
-    hdrs = ["tuple_ops.h"],
-    deps = [
-        ":ir_array",
-        ":llvm_type_conversion_util",
-        ":llvm_util",
-        "//xla:shape_util",
-        "//xla:xla_data_proto_cc",
-        "//xla/tsl/platform:logging",
-        "@com_google_absl//absl/algorithm:container",
-        "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/types:span",
-        "@llvm-project//llvm:Core",
-    ],
-)
-
-cc_library(
     name = "kernel_support_library",
     srcs = ["kernel_support_library.cc"],
     hdrs = ["kernel_support_library.h"],
@@ -284,15 +207,6 @@ cc_library(
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
-    ],
-)
-
-cc_library(
-    name = "ir_builder_mixin",
-    srcs = [],
-    hdrs = ["ir_builder_mixin.h"],
-    deps = [
-        "@llvm-project//llvm:Core",
     ],
 )
 
