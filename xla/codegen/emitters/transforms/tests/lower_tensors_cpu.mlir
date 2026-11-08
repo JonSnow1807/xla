@@ -29,3 +29,21 @@ func.func @load_non_gep_from_args(%arg0: !llvm.ptr) -> !llvm.ptr {
 // CHECK-NEXT:    %1 = llvm.load %0 : !llvm.ptr -> !llvm.ptr
 // CHECK-NEXT:    %2 = llvm.load %1 : !llvm.ptr -> !llvm.ptr
 // CHECK-NEXT:    return %2 : !llvm.ptr
+
+// -----
+
+func.func @copy_slice(%src: tensor<12xf32>, %dst: tensor<20xf32>,
+                      %src_idx: index, %dst_idx: index) -> tensor<20xf32> {
+  %res = xla.copy_slice %src[%src_idx] into %dst[%dst_idx] count(6)
+      : tensor<12xf32> into tensor<20xf32>
+  func.return %res : tensor<20xf32>
+}
+
+// CHECK-LABEL: func.func @copy_slice(
+// CHECK-SAME:      %[[SRC:.*]]: !llvm.ptr, %[[DST:.*]]: !llvm.ptr,
+// CHECK-SAME:      %[[SRC_IDX:.*]]: index, %[[DST_IDX:.*]]: index) {
+// CHECK-DAG:     %[[BYTES:.*]] = llvm.mlir.constant(24 : i64) : i64
+// CHECK-DAG:     %[[SRC_PTR:.*]] = llvm.getelementptr inbounds %[[SRC]][0, %{{.*}}] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.array<12 x f32>
+// CHECK-DAG:     %[[DST_PTR:.*]] = llvm.getelementptr inbounds %[[DST]][0, %{{.*}}] : (!llvm.ptr, i64) -> !llvm.ptr, !llvm.array<20 x f32>
+// CHECK:         "llvm.intr.memcpy"(%[[DST_PTR]], %[[SRC_PTR]], %[[BYTES]]) <{isVolatile = false}>
+// CHECK:         return
