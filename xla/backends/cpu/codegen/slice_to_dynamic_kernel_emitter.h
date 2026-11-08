@@ -1,4 +1,4 @@
-/* Copyright 2025 The OpenXLA Authors.
+/* Copyright 2026 The OpenXLA Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,10 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef XLA_BACKENDS_CPU_CODEGEN_ELEMENTAL_CONCATENATE_KERNEL_EMITTER_H_
-#define XLA_BACKENDS_CPU_CODEGEN_ELEMENTAL_CONCATENATE_KERNEL_EMITTER_H_
+#ifndef XLA_BACKENDS_CPU_CODEGEN_SLICE_TO_DYNAMIC_KERNEL_EMITTER_H_
+#define XLA_BACKENDS_CPU_CODEGEN_SLICE_TO_DYNAMIC_KERNEL_EMITTER_H_
 
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "xla/backends/cpu/codegen/target_machine_features.h"
@@ -27,24 +26,26 @@ limitations under the License.
 
 namespace xla::cpu {
 
-absl::Status CanDoFastConcatenate(const HloInstruction& instruction);
-
-class ConcatenateKernelEmitter final : public KernelEmitter<LlvmKernelSource> {
+// Emits a host kernel for a SliceToDynamic custom call instruction.
+class SliceToDynamicKernelEmitter final
+    : public KernelEmitter<LlvmKernelSource> {
  public:
-  ConcatenateKernelEmitter(const HloInstruction* instr,
-                           const BufferAssignment* buffer_assignment,
-                           const TargetMachineFeatures* target_machine);
+  SliceToDynamicKernelEmitter(const HloInstruction* instr,
+                              const BufferAssignment* buffer_assignment,
+                              const TargetMachineFeatures* target_machine);
 
-  absl::string_view name() const final { return "concatenate_kernel_emitter"; }
-  absl::StatusOr<KernelDefinition> EmitKernelDefinition() override;
+  absl::string_view name() const final {
+    return "slice_to_dynamic_kernel_emitter";
+  }
+
+  absl::StatusOr<KernelDefinition> EmitKernelDefinition() final;
 
  private:
   const HloInstruction* instr_;
-
   const BufferAssignment* buffer_assignment_;
   const TargetMachineFeatures* target_machine_;
 };
 
 }  // namespace xla::cpu
 
-#endif  // XLA_BACKENDS_CPU_CODEGEN_ELEMENTAL_CONCATENATE_KERNEL_EMITTER_H_
+#endif  // XLA_BACKENDS_CPU_CODEGEN_SLICE_TO_DYNAMIC_KERNEL_EMITTER_H_
