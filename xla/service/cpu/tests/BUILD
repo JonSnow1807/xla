@@ -111,10 +111,6 @@ xla_test(
     srcs = ["cpu_noalias_test.cc"],
     backends = ["cpu"],
     deps = [
-        "//xla:literal",
-        "//xla:literal_util",
-        "//xla:shape_util",
-        "//xla:xla_data_proto_cc",
         "//xla/backends/cpu:alignment",
         "//xla/backends/cpu/codegen:fusion_compiler",
         "//xla/backends/cpu/codegen:fusion_emitter",
@@ -130,14 +126,11 @@ xla_test(
         "//xla/service:logical_buffer",
         "//xla/service:platform_util",
         "//xla/service/cpu:cpu_compiler",
-        "//xla/service/llvm_ir:alias_analysis",
-        "//xla/service/llvm_ir:ir_array",
         "//xla/service/llvm_ir:llvm_util",
         "//xla/stream_executor:platform",
         "//xla/tests:xla_internal_test_main",
         "//xla/tsl/platform:test",
         "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:string_view",
         "@llvm-project//llvm:Analysis",
@@ -315,6 +308,24 @@ xla_test(
         "@com_google_googletest//:gtest",
         "@llvm-project//llvm:ARMCodeGen",  # fixdeps: keep
         "@llvm-project//llvm:X86CodeGen",  # fixdeps: keep
+    ],
+)
+
+xla_test(
+    name = "cpu_dyn_shape_test",
+    srcs = ["cpu_dyn_shape_test.cc"],
+    backends = ["cpu"],
+    deps = [
+        ":cpu_pjrt_codegen_test",
+        "//xla:literal",
+        "//xla:literal_util",
+        "//xla:shape_util",
+        "//xla:types",
+        "//xla:xla_data_proto_cc",
+        "//xla/hlo/testlib:verified_hlo_module",
+        "//xla/tests:xla_internal_test_main",
+        "@com_google_absl//absl/strings:string_view",
+        "@com_google_googletest//:gtest",
     ],
 )
 
