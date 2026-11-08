@@ -113,6 +113,8 @@ Value GetDestinationBuffer(Value dest) {
     int result_number = mlir::cast<OpResult>(dest).getResultNumber();
     if (auto insert = dest.getDefiningOp<mlir::tensor::InsertOp>()) {
       dest = insert.getDest();
+    } else if (auto copy_slice = dest.getDefiningOp<CopySliceOp>()) {
+      dest = copy_slice.getDest();
     } else if (auto scf_if = dest.getDefiningOp<scf::IfOp>()) {
       // Pick one of the branches, they're required to yield the same buffers.
       dest = scf_if.getThenRegion().front().getTerminator()->getOperand(
@@ -658,6 +660,50 @@ struct RewriteTransferWrite : OpRewritePattern<vector::TransferWriteOp> {
     }
 
     rewriter.replaceOp(op, mlir::ValueRange{op.getBase()});
+    return success();
+  }
+};
+
+struct RewriteCopySlice : mlir::OpRewritePattern<CopySliceOp> {
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(
+      CopySliceOp op, mlir::PatternRewriter& rewriter) const override {
+    Value src = GetDestinationBuffer(op.getSrc());
+    Value dest = GetDestinationBuffer(op.getDest());
+    if (!src || !dest) {
+      return failure();
+    }
+
+    auto tensor_src = mlir::cast<TypedValue<mlir::RankedTensorType>>(src);
+    auto tensor_dest = mlir::cast<TypedValue<mlir::RankedTensorType>>(dest);
+    Type element_type = tensor_dest.getType().getElementType();
+    if (GetSubByteBitWidth(element_type)) {
+      return op->emitOpError("sub-byte copy_slice is not supported");
+    }
+
+    int64_t num_elements = op.getNumElements();
+    if (num_elements > 0) {
+      mlir::ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+      Value src_linear_index = GetLinearIndex(op.getSrcIndices(), b);
+      Value dst_linear_index = GetLinearIndex(op.getDestIndices(), b);
+      auto src_gep = CreateGep(tensor_src, src_linear_index, b);
+      auto dst_gep = CreateGep(tensor_dest, dst_linear_index, b);
+
+      mlir::LLVMTypeConverter converter(getContext());
+      Type llvm_element_type = converter.convertType(element_type);
+      int64_t element_size_bytes =
+          static_cast<int64_t>(mlir::DataLayout::closest(op)
+                                   .getTypeSize(llvm_element_type)
+                                   .getFixedValue());
+      Value byte_count = ml::ConstantOp::create(
+          b, b.getI64Type(), num_elements * element_size_bytes);
+      ml::MemcpyOp::create(b, dst_gep, src_gep, byte_count,
+                           /*isVolatile=*/false);
+    }
+
+    op.replaceAllUsesWith(op.getDest());
+    op.erase();
     return success();
   }
 };
@@ -1513,7 +1559,7 @@ class LowerTensorsPass : public impl::LowerTensorsPassBase<LowerTensorsPass> {
     tensor_patterns.add<RewriteAtomicRMW, RewriteTensorInsert>(mlir_context,
                                                                device_spec_);
     tensor_patterns
-        .add<RewriteAllocateShared, RewriteGetDynamicDimSize,
+        .add<RewriteAllocateShared, RewriteCopySlice, RewriteGetDynamicDimSize,
              RewriteNonScalarConstants, RewriteSyncThreads,
              RewriteTensorExtract, RewriteTransferRead, RewriteTransferWrite>(
             mlir_context);
