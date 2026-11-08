@@ -1,4 +1,4 @@
-/* Copyright 2025 The OpenXLA Authors.
+/* Copyright 2026 The OpenXLA Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,38 +13,40 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef XLA_BACKENDS_CPU_CODEGEN_ELEMENTAL_CONCATENATE_KERNEL_EMITTER_H_
-#define XLA_BACKENDS_CPU_CODEGEN_ELEMENTAL_CONCATENATE_KERNEL_EMITTER_H_
+#ifndef XLA_BACKENDS_CPU_CODEGEN_EMITTERS_PAD_TO_STATIC_KERNEL_EMITTER_H_
+#define XLA_BACKENDS_CPU_CODEGEN_EMITTERS_PAD_TO_STATIC_KERNEL_EMITTER_H_
 
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "xla/backends/cpu/codegen/target_machine_features.h"
+#include "mlir/IR/MLIRContext.h"
 #include "xla/codegen/kernel_emitter.h"
-#include "xla/codegen/llvm_kernel_source.h"
+#include "xla/codegen/mlir_kernel_source.h"
 #include "xla/hlo/ir/hlo_instruction.h"
 #include "xla/service/buffer_assignment.h"
 
 namespace xla::cpu {
 
-absl::Status CanDoFastConcatenate(const HloInstruction& instruction);
-
-class ConcatenateKernelEmitter final : public KernelEmitter<LlvmKernelSource> {
+// Emits an MLIR kernel for a PadToStatic custom call on CPU.
+class PadToStaticKernelEmitter final : public KernelEmitter<MlirKernelSource> {
  public:
-  ConcatenateKernelEmitter(const HloInstruction* instr,
+  PadToStaticKernelEmitter(mlir::MLIRContext& mlir_context,
+                           const HloInstruction* instr,
                            const BufferAssignment* buffer_assignment,
-                           const TargetMachineFeatures* target_machine);
+                           bool use_unique_c_name = false);
 
-  absl::string_view name() const final { return "concatenate_kernel_emitter"; }
-  absl::StatusOr<KernelDefinition> EmitKernelDefinition() override;
+  absl::string_view name() const final {
+    return "pad_to_static_kernel_emitter";
+  }
+
+  absl::StatusOr<KernelDefinition> EmitKernelDefinition() final;
 
  private:
+  mlir::MLIRContext& mlir_context_;
   const HloInstruction* instr_;
-
   const BufferAssignment* buffer_assignment_;
-  const TargetMachineFeatures* target_machine_;
+  bool use_unique_c_name_;
 };
 
 }  // namespace xla::cpu
 
-#endif  // XLA_BACKENDS_CPU_CODEGEN_ELEMENTAL_CONCATENATE_KERNEL_EMITTER_H_
+#endif  // XLA_BACKENDS_CPU_CODEGEN_EMITTERS_PAD_TO_STATIC_KERNEL_EMITTER_H_
